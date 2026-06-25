@@ -49,6 +49,14 @@ Show worst predictions and discuss:
 - possible causes
 - possible improvements
 
+## Execution environment
+
+- Use the existing .venv virtual environment.
+- Do not create additional environments.
+- Install missing dependencies into .venv only.
+- Verify code by running it whenever possible.
+- Prefer editing files in src/ rather than generating large notebook cells.
+
 ## Codex working rules
 
 Before coding:

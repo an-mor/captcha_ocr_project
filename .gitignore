@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# docs
+*.pdf
+
+# data
+data*
+
+# codex
+.agents
