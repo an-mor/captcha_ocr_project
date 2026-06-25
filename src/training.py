@@ -88,17 +88,20 @@ def evaluate(model, loader, criterion, device, idx_to_char, use_amp=True):
 def fit(
     model,
     train_loader,
-    test_loader,
+    validation_loader,
     criterion,
     optimizer,
+    scheduler,
     device,
     idx_to_char,
     epochs,
+    early_stopping_patience=7,
     use_amp=True,
 ):
     history = []
     best_cer = float("inf")
     best_state = None
+    epochs_without_improvement = 0
 
     for epoch in range(1, epochs + 1):
         train_loss = train_one_epoch(
@@ -111,7 +114,7 @@ def fit(
         )
         metrics = evaluate(
             model,
-            test_loader,
+            validation_loader,
             criterion,
             device,
             idx_to_char,
@@ -121,22 +124,36 @@ def fit(
             {
                 "epoch": epoch,
                 "train_loss": train_loss,
-                "test_loss": metrics["loss"],
-                "cer": metrics["cer"],
-                "exact_accuracy": metrics["exact_accuracy"],
+                "validation_loss": metrics["loss"],
+                "validation_cer": metrics["cer"],
+                "validation_exact_accuracy": metrics["exact_accuracy"],
+                "learning_rate": optimizer.param_groups[0]["lr"],
             }
         )
+        scheduler.step(metrics["loss"])
+
         if metrics["cer"] < best_cer:
             best_cer = metrics["cer"]
             best_state = deepcopy(model.state_dict())
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
 
         print(
             f"Epoch {epoch:02d}/{epochs}: "
             f"train_loss={train_loss:.4f}, "
-            f"test_loss={metrics['loss']:.4f}, "
-            f"CER={metrics['cer']:.4f}, "
-            f"exact_accuracy={metrics['exact_accuracy']:.4f}"
+            f"val_loss={metrics['loss']:.4f}, "
+            f"val_CER={metrics['cer']:.4f}, "
+            f"val_accuracy={metrics['exact_accuracy']:.4f}, "
+            f"lr={optimizer.param_groups[0]['lr']:.2e}"
         )
+
+        if epochs_without_improvement >= early_stopping_patience:
+            print(
+                f"Early stopping after {epoch} epochs; "
+                f"best validation CER={best_cer:.4f}."
+            )
+            break
 
     if best_state is not None:
         model.load_state_dict(best_state)

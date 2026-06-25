@@ -221,7 +221,7 @@ __marimo__/
 *.pdf
 
 # data
-data*
+data/
 
 # codex
 .agents
