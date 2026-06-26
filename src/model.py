@@ -14,7 +14,6 @@ class CaptchaOCR(nn.Module):
             nn.MaxPool2d(2),
             self._conv_block(128, 192),
         )
-        self.sequence_pool = nn.AdaptiveAvgPool2d((1, captcha_length))
         self.sequence_model = nn.LSTM(
             input_size=192,
             hidden_size=hidden_size,
@@ -23,6 +22,7 @@ class CaptchaOCR(nn.Module):
             bidirectional=True,
             dropout=0.2,
         )
+        self.position_pool = nn.AdaptiveAvgPool1d(captcha_length)
         self.classifier = nn.Linear(hidden_size * 2, num_classes)
 
     @staticmethod
@@ -33,13 +33,16 @@ class CaptchaOCR(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-    def forward(self, images):
+    def extract_sequence(self, images):
         features = self.features(images)
-        features = self.sequence_pool(features).squeeze(2).transpose(1, 2)
+        return features.mean(dim=2).transpose(1, 2)
+
+    def forward(self, images):
+        features = self.extract_sequence(images)
         sequence, _ = self.sequence_model(features)
-        return self.classifier(sequence)
+        positions = self.position_pool(sequence.transpose(1, 2)).transpose(1, 2)
+        return self.classifier(positions)
 
 
 def count_parameters(model):
     return sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
-
